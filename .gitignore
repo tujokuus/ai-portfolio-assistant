@@ -1,0 +1,19 @@
+# Python and local tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Secrets, generated indexes and previews
+.env
+.env.*
+!.env.example
+vector_db/
+chunks.json
+
