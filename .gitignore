@@ -16,4 +16,5 @@ htmlcov/
 !.env.example
 vector_db/
 chunks.json
+reports/
 

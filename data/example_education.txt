@@ -1,6 +1,0 @@
-EXAMPLE ONLY: Fictional education record
-
-This is synthetic demonstration data, not personal information about Tuomas.
-An imaginary student completed an introductory data processing course at a fictional institution.
-The sample coursework involved cleaning a small CSV file. No real qualification is claimed.
-

@@ -18,3 +18,18 @@ class IngestionConfig:
         if not 0 <= self.chunk_overlap < self.chunk_size:
             raise ValueError("chunk_overlap must be non-negative and less than chunk_size")
 
+
+@dataclass(frozen=True)
+class EmbeddingConfig:
+    model_name: str = "intfloat/multilingual-e5-small"
+    revision: str = "main"
+    query_prefix: str = "query: "
+    passage_prefix: str = "passage: "
+    batch_size: int = 16
+
+    def __post_init__(self) -> None:
+        if not self.model_name.strip() or not self.revision.strip():
+            raise ValueError("Embedding model and revision must not be empty")
+        if self.batch_size < 1:
+            raise ValueError("batch_size must be positive")
+

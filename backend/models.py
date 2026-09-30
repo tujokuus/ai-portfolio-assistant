@@ -19,3 +19,9 @@ class DocumentChunk:
     chunk_index: int  # Zero-based within the document.
     text: str
 
+
+@dataclass(frozen=True)
+class SearchResult:
+    chunk: DocumentChunk
+    distance: float  # Chroma cosine distance: lower is closer, not confidence.
+
