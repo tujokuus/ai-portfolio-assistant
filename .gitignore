@@ -17,4 +17,9 @@ htmlcov/
 vector_db/
 chunks.json
 reports/
+docs/
 
+# Local review reports and clarification notes (including future variants)
+/retrieval-review*.md
+/portfolio-questions*.md
+/source-review-checklist*.md
