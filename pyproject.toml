@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ai-portfolio-assistant"
 version = "0.1.0"
-description = "Local portfolio ingestion and semantic retrieval for a RAG assistant."
+description = "Local portfolio assistant with retrieval and full-context answer comparison."
 requires-python = ">=3.11"
 dependencies = []
 
@@ -18,6 +18,8 @@ portfolio-ingest = "backend.ingestion:main"
 portfolio-search = "backend.retrieval:main"
 portfolio-index = "backend.indexing:main"
 portfolio-evaluate = "backend.evaluation:main"
+portfolio-ask = "backend.ask:main"
+portfolio-compare = "backend.compare:main"
 
 [tool.setuptools.packages.find]
 include = ["backend*"]

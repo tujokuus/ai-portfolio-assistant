@@ -3,8 +3,10 @@
 A portfolio project built incrementally toward a locally running, evidence-grounded
 assistant. Phase 1 provides UTF-8 Markdown/text loading and deterministic chunking.
 Phase 2 adds local multilingual embeddings, ChromaDB retrieval, and retrieval
-evaluation. **Phase 2 code has not been executed or tested yet**, at the user's
-request. There is no generative LLM, backend API, or frontend yet.
+evaluation. The user has run Phase 2 retrieval and its evaluation. Phase 3 adds
+Ollama answers with either full portfolio context or retrieved chunks, plus a
+comparison report. **Phase 3 has not been executed or tested yet**, at the user's
+request. There is no backend API or frontend yet.
 
 ## Setup (PowerShell)
 
@@ -60,6 +62,10 @@ backend/
   indexing.py     Explicit rebuild and active-index manifest
   retrieval.py    Semantic search service and CLI
   evaluation.py   Source-recall evaluation and JSON reports
+  llm.py          Provider protocol and Ollama HTTP client
+  rag.py          Shared grounding, evidence, and answer validation
+  ask.py          Single-question CLI (full or rag)
+  compare.py      Two-mode answer comparison for manual review
 data/             Curated portfolio documents only
 tests/            Loader, chunking, configuration, and CLI tests
 docs/             Original specifications and accepted design decisions
@@ -115,9 +121,9 @@ coursework, and personal projects. Include only material intended for public use
 Example answers in specifications are illustrative and must not become facts.
 
 See [accepted decisions](docs/design-decisions.md), the [master specification](docs/master-specification.md),
-and [phase instructions](docs/phase-instructions.md). Later phases will add grounded
-answers with traceable citations and a separate API/UI. Phase 3 should also compare
-retrieved context against providing the full portfolio to the same local model.
+and [phase instructions](docs/phase-instructions.md). Phase 3 provides grounded
+answer generation and a full-context comparison; later phases add the separate
+API/UI. Generation quality and guardrail effectiveness remain to be measured.
 
 Run the unit suite with `python -m pytest` using your configured environment.
 Loader tests use synthetic temporary files; evaluation integrity checks read the
@@ -212,4 +218,167 @@ The test suite uses fake embeddings for workflow tests. A real Chroma integratio
 test checks persistence, ordering, distances, and metadata with fixed vectors;
 it is skipped if Chroma is not installed. Neither proves multilingual retrieval
 quality: use the evaluation command and manually review its retrieved evidence.
+
+## Phase 3: local answers with full context or RAG
+
+Both modes use the same model, system instructions, JSON answer schema, temperature
+0, seed 42, and output limit. Both use `portfolio-grounding-v2` automatically.
+`full` reads all nonempty portfolio documents. It does not need Chroma, embeddings,
+or an index. `rag` (the CLI default) uses the existing
+top-k chunk search and refuses an index that differs from the current corpus.
+Neither mode reads evaluation answers or review notes as portfolio evidence.
+Each CLI invocation is independent; there is no conversational memory.
+
+The initial model is [`qwen3:4b-instruct`](https://ollama.com/library/qwen3:4b-instruct),
+a configurable starting point rather than a measured best choice for this machine.
+The listed download is about 2.5 GB; runtime memory also includes the context cache
+and other overhead. Hardware inspection was unavailable, so fit and speed have not
+been established. The default context setting is 32,768 tokens; reduce it only if
+your input still fits, or choose another model with `--model`.
+
+Install [Ollama for Windows](https://ollama.com/download/windows) and start its app.
+In PowerShell, run these commands yourself (none was run during implementation):
+
+```powershell
+# Download the model once. This requires internet access.
+ollama pull qwen3:4b-instruct
+
+# Inspect installed model tags/IDs; save the ID with comparison results.
+ollama list
+
+# Full portfolio: no index or additional Python runtime dependency is needed.
+.\.venv\Scripts\python.exe -m backend.ask "Mitä kokemusta Tuomaksella on Databricksista?" --mode full
+
+# RAG: uses the Phase 2 index you already built.
+.\.venv\Scripts\python.exe -m backend.ask "Mitä kokemusta Tuomaksella on Databricksista?" --mode rag --top-k 5
+
+# Inspect accepted statements, cited sources, full supplied context, and timings.
+.\.venv\Scripts\python.exe -m backend.ask "Where has Tuomas used TensorFlow?" --mode full --json
+
+# Unknown information should result in an explicit limitation, not a fabricated fact.
+.\.venv\Scripts\python.exe -m backend.ask "Mitä AWS-sertifikaatteja Tuomaksella on?" --mode full
+
+# Offline mocked tests, including HTTP error handling; no Ollama needed.
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+If the desktop Ollama app is not running the server, run `ollama serve` in a
+separate terminal and leave it open. Do not start a second server if the app already
+listens on port 11434. The Python client never installs Ollama or pulls models.
+All generation uses `http://localhost:11434` by default. Setting `--ollama-url` to
+another server sends the supplied portfolio context to that server.
+
+Useful CLI options (also accepted by the comparison command):
+
+| Option | Default | Purpose |
+|---|---|---|
+| `--model` | `qwen3:4b-instruct` | Installed Ollama model tag |
+| `--timeout` | `180` | HTTP timeout in seconds; try 300 on a slow first run |
+| `--num-ctx` | `32768` | Requested context window, subject to model/hardware support |
+| `--max-output-tokens` | `1024` | Generation limit; incomplete output is an error |
+| `--ollama-url` | `http://localhost:11434` | Ollama server |
+| `--data-dir` | `data` | Portfolio source directory |
+| `--db-dir` | `vector_db` | RAG index directory |
+| `--top-k` | `5` | Retrieved chunks in RAG mode |
+
+Question length is limited to 2,000 characters by `LLMConfig`. Configuration is
+explicit, so no `.env` loader is required. The stdlib HTTP adapter uses Ollama's
+[`/api/chat` structured output](https://docs.ollama.com/api/chat) with streaming off.
+The default instruct model avoids relying on a thinking-mode toggle; other model
+families may behave differently and must be verified before comparing them.
+
+## Comparing full context and RAG
+
+The default is eight curated questions using RAG only: eight generation requests.
+They cover education, Databricks work, work/project synthesis, a misleading premise
+about voice-agent retrieval, an undocumented thesis topic, undocumented AWS
+certifications, unavailable employer result metrics, and a request to invent
+credentials. References come from the existing evaluation dataset. Missing
+documentation must not be interpreted as proof of missing experience.
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.compare --output reports/answers-v2-smoke.json
+```
+
+Optional comparisons (not required for each prompt change):
+
+```powershell
+# Eight questions in both modes: 16 generation requests.
+.\.venv\Scripts\python.exe -m backend.compare --mode both --output reports/answers-v2-both.json
+
+# All 30 questions, RAG only: 30 generation requests.
+.\.venv\Scripts\python.exe -m backend.compare --suite all --output reports/answers-v2-all.json
+
+# Full original comparison: 60 generation requests.
+.\.venv\Scripts\python.exe -m backend.compare --suite all --mode both --output reports/answers-v2-all-both.json
+```
+
+`--limit N` further limits the selected suite; small limits may omit the unknown
+information and fabrication cases at the end. Use `--suite all` with custom
+datasets that do not contain the curated smoke IDs. This small suite is a spot
+check, not a comprehensive measurement of reliability.
+
+Use a new output filename for each run; existing reports are not overwritten.
+The command reads the corpus once, verifies that the RAG index matches when used,
+alternates mode order when comparing both modes, and saves after each question.
+An interruption can leave a report with status `running`; completed questions remain available. It is not
+an automatic resume mechanism. Runtime errors are recorded separately from factual
+abstentions, and a completed report with errors exits with code 1.
+
+Inspect `cases[].results.rag` (and `full` when selected). Each contains
+the answer, structured statements, cited sources, actual supplied evidence, wall
+time, and Ollama token/duration fields when returned. The report also records model
+settings, prompt version, dataset/corpus hashes, and index configuration. The
+`reference_for_manual_review_only` fields are added to the report after answering;
+they are never included in model messages.
+
+Fill in `manual_review` for each mode:
+
+- Are all factual claims supported by the supplied context?
+- Does the answer address the question and preserve important limitations?
+- Does each cited source actually support the associated statement?
+- Are missing information and misleading premises handled correctly?
+- Does the answer use the question's language, even for English source documents?
+- Does it describe supported experience without implying that undocumented
+  experience does not exist? A broad question about Databricks experience can be
+  `answered` by documented work; it should not list unrequested certifications or
+  repeat the answer in a limitation. Ask separately about certifications to check
+  that genuinely missing requested information is still acknowledged.
+
+Known reference-source restrictions can be too narrow (for example, education
+facts also appear in the profile). Judge semantically and do not manufacture an
+accuracy score from literal matching. The command intentionally does not call
+another LLM to grade answers. First requests can include model/embedding loading;
+later ones benefit from caches. Wall times are observations, not a controlled
+speed benchmark; inspect `load_duration` and repeat if timing matters. Assistant
+initialization/file loading is outside per-answer wall time.
+
+## Grounding limits and failures
+
+The model returns `answered`, `partial`, or `insufficient`. Each factual statement
+must have known source IDs, which the application resolves and renders as `[S1]`.
+An insufficient response has only a limitation, no factual statements. Partial
+responses combine cited facts and a missing-information explanation. Only cited
+evidence appears in the source list; the JSON separately exposes all supplied
+context. IDs are per request, and RAG source entries retain section and chunk IDs.
+Multiple chunks from one file may have separate IDs: this preserves exact evidence.
+
+Invalid JSON, unknown citations, missing required fields, connection failures,
+HTTP errors, timeout, and exhausted generation limits produce explicit failures,
+not a fabricated answer or a misleading "no information" result. No-context
+requests bypass the model and return a fixed insufficient-evidence message.
+
+Context is guarded with a conservative UTF-8 byte-based estimate including the
+schema, output allowance, and template margin. This is not an exact tokenizer
+measurement and may reject inputs that would actually fit. It never silently drops
+documents to make `full` fit. Ollama's returned prompt count is checked when present;
+model/server context handling still needs manual verification. Increasing context
+or output limits increases resource requirements.
+
+Evidence is encoded as data in a JSON message, separated from system instructions.
+This and strict citation validation reduce some failure modes, but do not guarantee
+injection resistance, truthful abstention, or semantic support of every claim.
+Mocked tests check implementation contracts, not real model reliability. Neither
+mode can establish that an unknown fact is absent from Tuomas's real experience.
+No tools, browsing, history, FastAPI, or frontend are provided to the answering model.
 
