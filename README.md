@@ -9,7 +9,7 @@ retrieval search. Local RAG and hosted File Search remain available for comparis
 `ask` and `compare` now default to `--mode full`. API use remains explicit through
 `--provider openai`; omitting the provider still selects Ollama.
 
-Next manual check: five questions covering earlier weak cases and unsupported
+Follow-up evaluation: five questions covering earlier weak cases and unsupported
 claims, using the selected full-context implementation:
 
 ```powershell
@@ -17,7 +17,7 @@ claims, using the selected full-context implementation:
 ```
 
 Review factual support, source citations, useful completeness, appropriate
-abstention and resistance to fabricated credentials before building the UI.
+abstention and resistance to fabricated credentials.
 This follow-up has been prepared but not executed by the coding agent.
 
 A portfolio project built incrementally toward a locally running, evidence-grounded
@@ -27,7 +27,69 @@ evaluation. The user has run Phase 2 retrieval and its evaluation. Phase 3 adds
 Ollama or OpenAI answers with either full portfolio context or retrieved chunks,
 plus a comparison report. The user has evaluated the Ollama implementation.
 The new OpenAI adapter and its offline tests have not been run by the coding agent,
-at the user's request. There is no backend API or frontend yet.
+at the user's request. A local FastAPI server and plain HTML/CSS/JavaScript
+frontend now wrap the existing full-context answer service.
+
+## Local browser interface
+
+Run these commands from the repository directory. The browser interface always
+uses OpenAI with `gpt-6-luna` and full context. Sending a question makes a paid API
+request; opening the page or choosing an example does not.
+
+```powershell
+# Install the small web dependency group; no Node.js or frontend build is needed.
+.\.venv\Scripts\python.exe -m pip install -e ".[web]"
+
+# Skip this if OPENAI_API_KEY is already set in this terminal (PowerShell 7).
+$env:OPENAI_API_KEY = Read-Host "OpenAI API key" -MaskInput
+
+.\.venv\Scripts\python.exe -m backend.web
+```
+
+Open **http://127.0.0.1:8000** in your browser. Stop the server with `Ctrl+C`.
+The server reads the key from its environment, not from `.env`. Missing keys or
+missing portfolio data stop startup with an error in the terminal. Restart the
+server after changing the Markdown corpus or Python code; refresh the browser
+after changing frontend files.
+
+The app binds only to the local machine. It is not yet configured for public
+deployment. The server allows one generation at a time, with a 2,000-character
+question limit, a 60-second provider timeout, and no automatic retries. Public
+deployment will additionally need abuse controls and spending limits.
+
+### Simple file layout
+
+- `frontend/index.html`: page structure and example questions.
+- `frontend/styles.css`: responsive layout, colors, and focus styles.
+- `frontend/app.js`: form handling, loading/errors, answers, and source lists.
+- `backend/web.py`: serves the page, `GET /health`, and `POST /api/chat`.
+
+The API returns answer text and cited source titles/filenames only. It does not
+send the full corpus, API key, or raw provider response to the browser. User and
+model text is displayed as text, not interpreted as HTML. Sources identify the
+local Markdown documents; this version does not open their contents in the UI.
+
+Each question is independent: previous messages are displayed but are not sent
+to the model. The page stores no chat history on disk; reloading or clearing the
+chat removes the visible messages. Questions and the portfolio corpus are still
+sent to OpenAI for generation.
+
+### Manual browser check
+
+The coding agent has not started the server, installed dependencies, run tests,
+or called OpenAI for this interface. To check it yourself:
+
+1. Open the page, select an example, and press **Send question**. Choosing an
+   example only fills the input so you can edit it before sending.
+2. Expand **Sources** and compare the answer with the referenced document.
+3. Ask about AWS certifications, then an unrelated topic. Confirm that the
+   assistant handles missing information and stays within portfolio scope.
+4. Resize the browser to a phone width and navigate the controls with Tab.
+5. Stop the server and try sending a question from the still-open page. Confirm
+   an error appears and the question remains available for a manual retry.
+6. Restart the server, send another question, and try **Clear chat**.
+
+Enter inserts a new line in the question field; use the send button to submit.
 
 ## OpenAI: manual setup and comparison
 
