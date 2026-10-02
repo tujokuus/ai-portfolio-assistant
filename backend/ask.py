@@ -35,7 +35,7 @@ def llm_config(args: argparse.Namespace) -> LLMConfig:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("question")
-    parser.add_argument("--mode", choices=["full", "rag", "file-search"], default="rag")
+    parser.add_argument("--mode", choices=["full", "rag", "file-search"], default="full")
     parser.add_argument("--json", action="store_true", dest="as_json")
     add_options(parser)
     args = parser.parse_args(argv)

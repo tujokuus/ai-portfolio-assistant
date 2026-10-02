@@ -1,5 +1,25 @@
 # AI Portfolio Assistant
 
+**Selected design:** full-context answering with OpenAI for the first application
+version. See [the architecture decision and measured comparison](ARCHITECTURE_DECISION.md)
+for the three approaches explored, answer-quality findings, timings, costs and
+limitations. Full context sends the complete curated corpus; it does not run a
+retrieval search. Local RAG and hosted File Search remain available for comparison.
+
+`ask` and `compare` now default to `--mode full`. API use remains explicit through
+`--provider openai`; omitting the provider still selects Ollama.
+
+Next manual check: five questions covering earlier weak cases and unsupported
+claims, using the selected full-context implementation:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.compare --provider openai --dataset tests/evaluation_full_followup.json --suite all --output reports/full-followup-01.json
+```
+
+Review factual support, source citations, useful completeness, appropriate
+abstention and resistance to fabricated credentials before building the UI.
+This follow-up has been prepared but not executed by the coding agent.
+
 A portfolio project built incrementally toward a locally running, evidence-grounded
 assistant. Phase 1 provides UTF-8 Markdown/text loading and deterministic chunking.
 Phase 2 adds local multilingual embeddings, ChromaDB retrieval, and retrieval
@@ -351,8 +371,8 @@ Both modes use the same selected provider/model, system instructions, JSON answe
 schema and output limit. Ollama uses temperature 0 and seed 42; OpenAI uses the
 configured reasoning effort without these Ollama options.
 Both use `portfolio-grounding-v4-scope` automatically.
-`full` reads all nonempty portfolio documents. It does not need Chroma, embeddings,
-or an index. `rag` (the CLI default) uses the existing
+`full` (the CLI default) reads all nonempty portfolio documents. It does not need
+Chroma, embeddings, or an index. `rag` uses the existing
 top-k chunk search and refuses an index that differs from the current corpus.
 Neither mode reads evaluation answers or review notes as portfolio evidence.
 Each CLI invocation is independent; there is no conversational memory.
@@ -417,7 +437,7 @@ families may behave differently and must be verified before comparing them.
 
 ## Comparing full context and RAG
 
-The default is eight curated questions using RAG only: eight generation requests.
+The default is eight curated questions using full context: eight generation requests.
 They cover education, Databricks work, work/project synthesis, a misleading premise
 about voice-agent retrieval, an undocumented thesis topic, undocumented AWS
 certifications, unavailable employer result metrics, and a request to invent
@@ -434,7 +454,7 @@ Optional comparisons (not required for each prompt change):
 # Eight questions in both modes: 16 generation requests.
 .\.venv\Scripts\python.exe -m backend.compare --mode both --output reports/answers-v3-both.json
 
-# All 30 questions, RAG only: 30 generation requests.
+# All 30 questions, full context: 30 generation requests.
 .\.venv\Scripts\python.exe -m backend.compare --dataset tests/evaluation_queries.json --suite all --output reports/answers-v3-all.json
 
 # Full original comparison: 60 generation requests.
@@ -453,7 +473,7 @@ An interruption can leave a report with status `running`; completed questions re
 an automatic resume mechanism. Runtime errors are recorded separately from factual
 abstentions, and a completed report with errors exits with code 1.
 
-Inspect `cases[].results.rag` (and `full` when selected). Each contains
+Inspect `cases[].results.full` (or `rag` / `file-search` when selected). Each contains
 the answer, structured statements, cited sources, actual supplied evidence, wall
 time, and provider usage/timing fields when returned. The report also records model
 settings, prompt version, dataset/corpus hashes, and index configuration. The
@@ -466,7 +486,7 @@ Fill in `manual_review` for each mode:
 - Does the answer address the question and preserve important limitations?
 - Does each cited source actually support the associated statement?
 - Are missing information and misleading premises handled correctly?
-- Does the answer use clear English, as required by the v3 prompt?
+- Does the answer use clear English, as required by the v4 prompt?
 - Does it describe supported experience without implying that undocumented
   experience does not exist? A broad question about Databricks experience can be
   `answered` by documented work; it should not list unrequested certifications or

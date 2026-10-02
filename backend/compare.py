@@ -1,4 +1,4 @@
-"""Review a small RAG question suite, optionally comparing with full context."""
+"""Review full-context answers, optionally comparing with retrieval-based modes."""
 
 import argparse
 import hashlib
@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dataset", type=Path, default=Path("tests/evaluation_smoke_en.json"))
     parser.add_argument("--suite", choices=["smoke", "all"], default="smoke",
                         help="Eight curated questions (default), or the entire dataset")
-    parser.add_argument("--mode", choices=["rag", "full", "both", "file-search", "cloud-both"], default="rag",
+    parser.add_argument("--mode", choices=["rag", "full", "both", "file-search", "cloud-both"], default="full",
                         help="cloud-both compares full with hosted File Search")
     parser.add_argument("--limit", type=int, help="Run only the first N questions of the selected suite")
     parser.add_argument("--output", type=Path, default=Path("reports/answer-comparison.json"))
