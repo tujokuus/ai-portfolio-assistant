@@ -11,7 +11,7 @@ from time import perf_counter
 
 from backend.ask import add_options, llm_config
 from backend.ingestion import load_documents
-from backend.llm import OllamaClient
+from backend.llm import create_client
 from backend.rag import PROMPT_VERSION, PortfolioAssistant
 
 
@@ -31,6 +31,7 @@ def compare_case(case: dict, assistants: dict, order: list[str]) -> dict:
             results[mode] = {"ok": True, **asdict(result)}
         except (ValueError, RuntimeError, OSError) as exc:
             results[mode] = {"ok": False, "error": str(exc),
+                             "metrics": getattr(exc, "metrics", {}),
                              "elapsed_seconds": perf_counter() - started}
     return {
         "id": case["id"], "question": case["question"], "order": order,
@@ -44,7 +45,28 @@ def compare_case(case: dict, assistants: dict, order: list[str]) -> dict:
     }
 
 
+def summarize_results(cases: list[dict], modes: list[str]) -> dict:
+    summary = {}
+    for mode in modes:
+        results = [case["results"][mode] for case in cases if mode in case["results"]]
+        usages = [result.get("metrics", {}).get("usage") for result in results]
+        known = [usage for usage in usages if isinstance(usage, dict)]
+        summary[mode] = {
+            "attempts": len(results), "errors": sum(not result["ok"] for result in results),
+            "elapsed_seconds": sum(result["elapsed_seconds"] for result in results),
+            "responses_with_usage": len(known),
+            "input_tokens": sum(usage.get("input_tokens", 0) for usage in known),
+            "output_tokens": sum(usage.get("output_tokens", 0) for usage in known),
+            "cached_input_tokens": sum((usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
+                                       for usage in known),
+            "reasoning_tokens": sum((usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0)
+                                    for usage in known),
+        }
+    return summary
+
+
 def save_report(path: Path, report: dict) -> None:
+    report["summary"] = summarize_results(report["cases"], report["modes"])
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
@@ -53,7 +75,7 @@ def save_report(path: Path, report: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     add_options(parser)
-    parser.add_argument("--dataset", type=Path, default=Path("tests/evaluation_queries.json"))
+    parser.add_argument("--dataset", type=Path, default=Path("tests/evaluation_smoke_en.json"))
     parser.add_argument("--suite", choices=["smoke", "all"], default="smoke",
                         help="Eight curated questions (default), or the entire dataset")
     parser.add_argument("--mode", choices=["rag", "full", "both"], default="rag")
@@ -89,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             for item in case["evidence"]:
                 if item["quote"] not in texts.get(item["source"], ""):
                     raise ValueError(f"Outdated evaluation evidence in {case['id']}; review it first.")
-        client = OllamaClient(config)
+        client = create_client(config)
         assistants = {mode: PortfolioAssistant(
             client, config, mode=mode, documents=documents, db_dir=args.db_dir, top_k=args.top_k
         ) for mode in modes}
@@ -109,7 +131,9 @@ def main(argv: list[str] | None = None) -> int:
                 "With both modes, order alternates; first calls can include model/embedding loading and cache effects.",
                 "The smoke suite is a targeted spot check, not a comprehensive quality measurement.",
                 "Elapsed time excludes assistant setup and includes retrieval when used.",
-                "Model tags may change; record ollama list output with your experiment.",
+                "Model aliases may change; record provider and returned model metadata.",
+                "Token totals include reported usage only; failed network requests may still be billed.",
+                "Reasoning tokens are part of output tokens; do not count them twice for pricing.",
                 "Known narrow reference expectations need semantic review, not exact answer matching.",
             ],
         }

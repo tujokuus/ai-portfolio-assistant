@@ -4,9 +4,75 @@ A portfolio project built incrementally toward a locally running, evidence-groun
 assistant. Phase 1 provides UTF-8 Markdown/text loading and deterministic chunking.
 Phase 2 adds local multilingual embeddings, ChromaDB retrieval, and retrieval
 evaluation. The user has run Phase 2 retrieval and its evaluation. Phase 3 adds
-Ollama answers with either full portfolio context or retrieved chunks, plus a
-comparison report. **Phase 3 has not been executed or tested yet**, at the user's
-request. There is no backend API or frontend yet.
+Ollama or OpenAI answers with either full portfolio context or retrieved chunks,
+plus a comparison report. The user has evaluated the Ollama implementation.
+The new OpenAI adapter and its offline tests have not been run by the coding agent,
+at the user's request. There is no backend API or frontend yet.
+
+## OpenAI: manual setup and comparison
+
+The existing CLI defaults to Ollama. Select `--provider openai` explicitly to send
+portfolio evidence to OpenAI. Its default model is `gpt-6-luna`, with reasoning
+effort `none`; override these with `--model` and `--reasoning-effort` when supported
+by the selected model. Both providers now use the English-only v3 prompt.
+This change does not fine-tune a model or upload a hosted vector store. In `rag`
+mode only the retrieved evidence is sent; `full` sends all portfolio documents.
+Existing local embeddings and Chroma are unchanged. No re-indexing is needed.
+
+The adapter uses Python's standard-library HTTPS client and needs no new package.
+Set `OPENAI_API_KEY` in the process environment or deployment secret manager.
+`.env.example` is a reference only; `.env` is not automatically loaded. Never commit
+the key or include it in browser code. In PowerShell 7, read it without putting the
+key itself in command history:
+
+```powershell
+$env:OPENAI_API_KEY = Read-Host "OpenAI API key" -MaskInput
+
+# One paid request. Full mode needs no local retrieval dependencies/index.
+.\.venv\Scripts\python.exe -m backend.ask "What has Tuomas used Databricks for?" --provider openai --mode full
+
+# Eight English questions, both modes: up to 16 paid requests.
+.\.venv\Scripts\python.exe -m backend.compare --provider openai --mode both --output reports/openai-english-v3-01.json
+
+# Same English suite with Ollama, for a separate provider comparison.
+.\.venv\Scripts\python.exe -m backend.compare --provider ollama --mode both --output reports/ollama-english-v3-01.json
+
+# Offline checks you can run yourself; no API key, network or model is needed.
+.\.venv\Scripts\python.exe -m pytest tests/test_openai.py tests/test_rag.py -q
+```
+
+Use a fresh output filename each time. `--limit 2` reduces a two-mode comparison
+to four requests, but excludes the harder cases. The default dataset is
+`tests/evaluation_smoke_en.json`; the original 30-question dataset is preserved.
+English and Finnish runs are different experiments: question wording can change
+retrieval, so compare providers on the same English dataset and prompt version.
+
+The OpenAI request uses Responses API strict JSON Schema output, `store=false`,
+standard processing and disabled truncation. No built-in tools or automatic
+retries are enabled. Application citation/status checks still apply: structured
+output does not prove factual correctness. The key is not stored in configuration
+or reports. `store=false` does not mean zero retention under all API policies.
+An API timeout may still incur charges; check usage before repeating a large run.
+
+Each answer stores `metrics.usage`, the returned model, response ID and service
+tier. The report's `summary` totals time, errors and reported token usage by mode,
+including usage for generated answers rejected by validation. Missing usage is
+not evidence of zero cost. Output tokens already include reasoning tokens; do not
+add those twice. The `--num-ctx` value remains a conservative local input-budget
+guard for OpenAI, not a request to change its model context window.
+
+For ordinary token pricing, estimate USD as `(uncached input tokens * input rate
++ cached input tokens * cached rate + output tokens * output rate) / 1,000,000`.
+Use rates for the returned model and processing tier, and account separately for
+any cache-write, regional or other applicable charges. Reports contain measured
+usage, not an invoice or hard-coded price estimate. On 2026-10-01, the documented
+standard short-context GPT-6 Luna rates are $0.10 input, $0.01 cached input and
+$0.50 output per million tokens; Batch/Flex rates are different. Our own retrieval
+does not incur an OpenAI File Search tool fee. Hosting and taxes are separate.
+
+Official references: [GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna),
+[Responses and text generation](https://developers.openai.com/api/docs/guides/text),
+[structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 
 ## Setup (PowerShell)
 
@@ -221,8 +287,10 @@ quality: use the evaluation command and manually review its retrieved evidence.
 
 ## Phase 3: local answers with full context or RAG
 
-Both modes use the same model, system instructions, JSON answer schema, temperature
-0, seed 42, and output limit. Both use `portfolio-grounding-v2` automatically.
+Both modes use the same selected provider/model, system instructions, JSON answer
+schema and output limit. Ollama uses temperature 0 and seed 42; OpenAI uses the
+configured reasoning effort without these Ollama options.
+Both use `portfolio-grounding-v3-english` automatically.
 `full` reads all nonempty portfolio documents. It does not need Chroma, embeddings,
 or an index. `rag` (the CLI default) uses the existing
 top-k chunk search and refuses an index that differs from the current corpus.
@@ -265,7 +333,7 @@ ollama list
 If the desktop Ollama app is not running the server, run `ollama serve` in a
 separate terminal and leave it open. Do not start a second server if the app already
 listens on port 11434. The Python client never installs Ollama or pulls models.
-All generation uses `http://localhost:11434` by default. Setting `--ollama-url` to
+Ollama generation uses `http://localhost:11434` by default. Setting `--ollama-url` to
 another server sends the supplied portfolio context to that server.
 
 Useful CLI options (also accepted by the comparison command):
@@ -297,20 +365,20 @@ credentials. References come from the existing evaluation dataset. Missing
 documentation must not be interpreted as proof of missing experience.
 
 ```powershell
-.\.venv\Scripts\python.exe -m backend.compare --output reports/answers-v2-smoke.json
+.\.venv\Scripts\python.exe -m backend.compare --output reports/answers-v3-smoke.json
 ```
 
 Optional comparisons (not required for each prompt change):
 
 ```powershell
 # Eight questions in both modes: 16 generation requests.
-.\.venv\Scripts\python.exe -m backend.compare --mode both --output reports/answers-v2-both.json
+.\.venv\Scripts\python.exe -m backend.compare --mode both --output reports/answers-v3-both.json
 
 # All 30 questions, RAG only: 30 generation requests.
-.\.venv\Scripts\python.exe -m backend.compare --suite all --output reports/answers-v2-all.json
+.\.venv\Scripts\python.exe -m backend.compare --dataset tests/evaluation_queries.json --suite all --output reports/answers-v3-all.json
 
 # Full original comparison: 60 generation requests.
-.\.venv\Scripts\python.exe -m backend.compare --suite all --mode both --output reports/answers-v2-all-both.json
+.\.venv\Scripts\python.exe -m backend.compare --dataset tests/evaluation_queries.json --suite all --mode both --output reports/answers-v3-all-both.json
 ```
 
 `--limit N` further limits the selected suite; small limits may omit the unknown
@@ -327,7 +395,7 @@ abstentions, and a completed report with errors exits with code 1.
 
 Inspect `cases[].results.rag` (and `full` when selected). Each contains
 the answer, structured statements, cited sources, actual supplied evidence, wall
-time, and Ollama token/duration fields when returned. The report also records model
+time, and provider usage/timing fields when returned. The report also records model
 settings, prompt version, dataset/corpus hashes, and index configuration. The
 `reference_for_manual_review_only` fields are added to the report after answering;
 they are never included in model messages.
@@ -338,7 +406,7 @@ Fill in `manual_review` for each mode:
 - Does the answer address the question and preserve important limitations?
 - Does each cited source actually support the associated statement?
 - Are missing information and misleading premises handled correctly?
-- Does the answer use the question's language, even for English source documents?
+- Does the answer use clear English, as required by the v3 prompt?
 - Does it describe supported experience without implying that undocumented
   experience does not exist? A broad question about Databricks experience can be
   `answered` by documented work; it should not list unrequested certifications or

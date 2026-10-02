@@ -36,17 +36,23 @@ class EmbeddingConfig:
 
 @dataclass(frozen=True)
 class LLMConfig:
+    provider: str = "ollama"
     model: str = "qwen3:4b-instruct"
     base_url: str = "http://localhost:11434"
     timeout_seconds: float = 180
     num_ctx: int = 32768
     max_output_tokens: int = 1024
     max_question_chars: int = 2000
+    reasoning_effort: str = "none"
 
     def __post_init__(self) -> None:
         from math import isfinite
         from urllib.parse import urlparse
 
+        if self.provider not in {"ollama", "openai"}:
+            raise ValueError("Provider must be ollama or openai")
+        if self.reasoning_effort not in {"none", "low", "medium", "high"}:
+            raise ValueError("Unsupported reasoning effort")
         url = urlparse(self.base_url)
         if url.scheme not in {"http", "https"} or not url.hostname:
             raise ValueError("Ollama URL must be an HTTP(S) server URL")
