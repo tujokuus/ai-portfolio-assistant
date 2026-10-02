@@ -11,11 +11,71 @@ at the user's request. There is no backend API or frontend yet.
 
 ## OpenAI: manual setup and comparison
 
+### Full vs File Search: four-question experiment
+
+`tests/evaluation_cloud_four.json` contains four English questions with expected
+facts and sources: Databricks, a comparison of two projects, the false premise
+about cross-session embeddings, and a chocolate cake recipe request. The shared
+v4 prompt limits answers to the portfolio; the last request should produce a
+brief scope explanation without a recipe or citations. References are never
+sent to the model.
+
+With `OPENAI_API_KEY` set, run these commands yourself:
+
+```powershell
+# File Search alone needs the optional official SDK.
+.\.venv\Scripts\python.exe -m pip install -e ".[cloud]"
+
+# Upload the Markdown/text portfolio snapshot once.
+.\.venv\Scripts\python.exe -m backend.file_search upload
+
+# Four questions, two modes: eight generation requests plus search tool calls.
+.\.venv\Scripts\python.exe -m backend.compare --provider openai --mode cloud-both --dataset tests/evaluation_cloud_four.json --suite all --output reports/full-vs-file-search-01.json
+
+# Optional individual question.
+.\.venv\Scripts\python.exe -m backend.ask "What has Tuomas used Databricks for?" --provider openai --mode file-search
+
+# Offline tests, to be run manually.
+.\.venv\Scripts\python.exe -m pytest tests/test_file_search.py tests/test_openai.py tests/test_rag.py -q
+```
+
+`both` still means full vs local RAG; `cloud-both` means full vs hosted File Search.
+Use a fresh report filename each run. Add `--limit 1` for a two-response smoke test;
+omit it to include all four questions. File Search does not load local embeddings
+or Chroma. It uses the Responses `file_search` tool and OpenAI's chunking/indexing.
+The model may skip search for an unrelated question; tool counts are recorded.
+
+Upload saves the store ID, file IDs and corpus hash to `vector_db/file-search.json`
+(gitignored). Questions reuse that store rather than uploading again. Stale or
+incomplete snapshots fail before generation. Remote file membership is also
+checked; keep the experimental store immutable during a comparison. Reports save
+retrieved snippets, tool queries, usage and validated citations. A cited file must
+belong to the snapshot and appear in returned search results. This validates
+identity, not semantic correctness. Full and File Search use the same core rules
+with different evidence/citation instructions: this is an end-to-end comparison.
+
+After changing documents, upload with `--manifest vector_db/file-search-v2.json`
+and use `--file-search-manifest vector_db/file-search-v2.json` in ask/compare.
+Existing manifests are never overwritten. Failed uploads preserve known resource
+IDs; there is no automatic resume or deletion. Inspect OpenAI Platform Storage
+before repeating a failed upload: a timeout can leave resources whose IDs were
+not returned. The store expires seven days after last activity. Uploaded Files
+API objects are separate: when finished, delete the experimental store and its
+recorded uploaded files in Platform Storage. Removing the local manifest or using
+`store=false` for answers does not delete the uploaded knowledge base.
+
+File Search tool calls are billed in addition to tokens and possible storage.
+The report includes cache-write tokens and tool counts, but is not an invoice.
+Timings exclude upload and snapshot verification. No uploads, model calls, package
+installation or tests were run during implementation.
+See [File Search](https://developers.openai.com/api/docs/guides/tools-file-search)
+and [vector stores](https://developers.openai.com/api/docs/guides/retrieval).
+
 The existing CLI defaults to Ollama. Select `--provider openai` explicitly to send
 portfolio evidence to OpenAI. Its default model is `gpt-6-luna`, with reasoning
 effort `none`; override these with `--model` and `--reasoning-effort` when supported
-by the selected model. Both providers now use the English-only v3 prompt.
-This change does not fine-tune a model or upload a hosted vector store. In `rag`
+by the selected model. Both providers now use the English-only v4 scope prompt.
+The full/local RAG modes do not upload a hosted vector store. In `rag`
 mode only the retrieved evidence is sent; `full` sends all portfolio documents.
 Existing local embeddings and Chroma are unchanged. No re-indexing is needed.
 
@@ -290,7 +350,7 @@ quality: use the evaluation command and manually review its retrieved evidence.
 Both modes use the same selected provider/model, system instructions, JSON answer
 schema and output limit. Ollama uses temperature 0 and seed 42; OpenAI uses the
 configured reasoning effort without these Ollama options.
-Both use `portfolio-grounding-v3-english` automatically.
+Both use `portfolio-grounding-v4-scope` automatically.
 `full` reads all nonempty portfolio documents. It does not need Chroma, embeddings,
 or an index. `rag` (the CLI default) uses the existing
 top-k chunk search and refuses an index that differs from the current corpus.

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "cloud_databricks",
+      "question": "What has Tuomas used Databricks for?",
+      "answer_mode": "answer",
+      "required_facts": ["Building and maintaining ETL pipelines in Databricks Lakehouse with Python, SQL and Apache Spark.", "Databricks Jobs for orchestration and automated model deployment."],
+      "forbidden_claims": ["His experience is limited to this role.", "Undocumented certifications or leadership responsibilities."],
+      "expected_sources": ["experience/cense-analytics-machine-learning-data-science-intern.md"],
+      "evidence": [{"source": "experience/cense-analytics-machine-learning-data-science-intern.md", "quote": "He built and maintained ETL data pipelines in Databricks Lakehouse using Python, SQL, and Apache Spark, and orchestrated workflows with Databricks Jobs to automate model deployment."}]
+    },
+    {
+      "id": "cloud_projects",
+      "question": "Compare the purposes and data-processing pipelines of Tuomas's Ukraine dashboard and Local Voice Agent projects.",
+      "answer_mode": "answer",
+      "required_facts": ["Ukraine dashboard analyzes strike data using bronze/silver/gold layers and DuckDB marts/views for a dashboard.", "Local Voice Agent processes audio into transcripts, summaries and question answering over session evidence."],
+      "forbidden_claims": ["The projects are employer projects.", "Either project is fully finished."],
+      "expected_sources": ["projects/air-strikes-on-ukraine-dashboard.md", "projects/local-voice-agent.md"],
+      "evidence": [{"source": "projects/air-strikes-on-ukraine-dashboard.md", "quote": "The pipeline uses bronze, silver, and gold data layers."}, {"source": "projects/local-voice-agent.md", "quote": "The README describes local transcription, structured summaries, and evidence-based question answering over a stored session."}]
+    },
+    {
+      "id": "cloud_false_premise",
+      "question": "How does Local Voice Agent use embeddings to search across all past meetings?",
+      "answer_mode": "correct_premise",
+      "required_facts": ["Correct the premise: embeddings and cross-session retrieval are outside the documented initial scope. Cite the source."],
+      "forbidden_claims": ["Embeddings and cross-session retrieval are implemented."],
+      "expected_sources": ["projects/local-voice-agent.md"],
+      "evidence": [{"source": "projects/local-voice-agent.md", "quote": "Speaker diarization, real-time recording, graphical interfaces, mobile clients, embeddings, and cross-session retrieval are outside the stated initial scope."}]
+    },
+    {
+      "id": "cloud_out_of_scope",
+      "question": "Give me a detailed recipe for chocolate cake, including ingredient quantities and baking instructions.",
+      "answer_mode": "out_of_scope",
+      "required_facts": ["Briefly explain that this assistant helps with Tuomas's portfolio and invite a relevant question. Return insufficient with empty statements and no citations."],
+      "forbidden_claims": ["A cake recipe, ingredient list, quantities or baking instructions.", "An invented connection between cake baking and Tuomas's experience."],
+      "expected_sources": [],
+      "evidence": []
+    }
+  ]
+}

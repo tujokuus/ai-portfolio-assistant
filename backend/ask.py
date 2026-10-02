@@ -15,6 +15,7 @@ def add_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--db-dir", type=Path, default=Path("vector_db"))
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--file-search-manifest", type=Path, default=Path("vector_db/file-search.json"))
     parser.add_argument("--provider", choices=["ollama", "openai"], default="ollama")
     parser.add_argument("--model", help="Default: qwen3:4b-instruct for Ollama, gpt-6-luna for OpenAI")
     parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high"], default="none")
@@ -34,7 +35,7 @@ def llm_config(args: argparse.Namespace) -> LLMConfig:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("question")
-    parser.add_argument("--mode", choices=["full", "rag"], default="rag")
+    parser.add_argument("--mode", choices=["full", "rag", "file-search"], default="rag")
     parser.add_argument("--json", action="store_true", dest="as_json")
     add_options(parser)
     args = parser.parse_args(argv)
@@ -42,8 +43,14 @@ def main(argv: list[str] | None = None) -> int:
         config = llm_config(args)
         if not args.question.strip() or len(args.question.strip()) > config.max_question_chars:
             raise ValueError(f"Provide a question of 1–{config.max_question_chars} characters")
-        assistant = PortfolioAssistant(create_client(config), config, mode=args.mode,
-                                       data_dir=args.data_dir, db_dir=args.db_dir, top_k=args.top_k)
+        if args.mode == "file-search":
+            from backend.file_search import FileSearchAssistant
+            from backend.ingestion import load_documents
+            assistant = FileSearchAssistant(config, load_documents(args.data_dir),
+                                            args.file_search_manifest, args.top_k)
+        else:
+            assistant = PortfolioAssistant(create_client(config), config, mode=args.mode,
+                                           data_dir=args.data_dir, db_dir=args.db_dir, top_k=args.top_k)
         result = assistant.ask(args.question)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.exit(1, f"Question failed: {exc}\n")

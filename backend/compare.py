@@ -59,6 +59,9 @@ def summarize_results(cases: list[dict], modes: list[str]) -> dict:
             "output_tokens": sum(usage.get("output_tokens", 0) for usage in known),
             "cached_input_tokens": sum((usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
                                        for usage in known),
+            "cache_write_tokens": sum((usage.get("input_tokens_details") or {}).get("cache_write_tokens", 0)
+                                      for usage in known),
+            "file_search_calls": sum(result.get("metrics", {}).get("file_search_calls", 0) for result in results),
             "reasoning_tokens": sum((usage.get("output_tokens_details") or {}).get("reasoning_tokens", 0)
                                     for usage in known),
         }
@@ -78,7 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dataset", type=Path, default=Path("tests/evaluation_smoke_en.json"))
     parser.add_argument("--suite", choices=["smoke", "all"], default="smoke",
                         help="Eight curated questions (default), or the entire dataset")
-    parser.add_argument("--mode", choices=["rag", "full", "both"], default="rag")
+    parser.add_argument("--mode", choices=["rag", "full", "both", "file-search", "cloud-both"], default="rag",
+                        help="cloud-both compares full with hosted File Search")
     parser.add_argument("--limit", type=int, help="Run only the first N questions of the selected suite")
     parser.add_argument("--output", type=Path, default=Path("reports/answer-comparison.json"))
     args = parser.parse_args(argv)
@@ -104,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("Smoke suite IDs are missing; use --suite all for a custom dataset")
             cases = [by_id[case_id] for case_id in SMOKE_CASE_IDS]
         cases = cases[:args.limit]
-        modes = ["full", "rag"] if args.mode == "both" else [args.mode]
+        modes = ({"both": ["full", "rag"], "cloud-both": ["full", "file-search"]}.get(args.mode, [args.mode]))
         documents = load_documents(args.data_dir)
         texts = {doc.source: doc.text for doc in documents}
         for case in cases:
@@ -112,9 +116,14 @@ def main(argv: list[str] | None = None) -> int:
                 if item["quote"] not in texts.get(item["source"], ""):
                     raise ValueError(f"Outdated evaluation evidence in {case['id']}; review it first.")
         client = create_client(config)
-        assistants = {mode: PortfolioAssistant(
-            client, config, mode=mode, documents=documents, db_dir=args.db_dir, top_k=args.top_k
-        ) for mode in modes}
+        assistants = {}
+        for mode in modes:
+            if mode == "file-search":
+                from backend.file_search import FileSearchAssistant
+                assistants[mode] = FileSearchAssistant(config, documents, args.file_search_manifest, args.top_k)
+            else:
+                assistants[mode] = PortfolioAssistant(client, config, mode=mode, documents=documents,
+                                                      db_dir=args.db_dir, top_k=args.top_k)
         report = {
             "schema_version": 1, "created_at": datetime.now(timezone.utc).isoformat(),
             "prompt_version": PROMPT_VERSION, "config": asdict(config), "top_k": args.top_k,
@@ -122,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
             "corpus_sha256": assistants[modes[0]].corpus_sha256,
             "dataset_sha256": hashlib.sha256(raw).hexdigest(),
             "retrieval_index": assistants["rag"].retriever.manifest if "rag" in assistants else None,
+            "file_search_snapshot": assistants["file-search"].manifest if "file-search" in assistants else None,
             "requested_generations": len(cases) * len(modes),
             "requested_cases": len(cases), "completed_cases": 0, "errors": 0,
             "status": "running", "cases": [],
@@ -135,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
                 "Token totals include reported usage only; failed network requests may still be billed.",
                 "Reasoning tokens are part of output tokens; do not count them twice for pricing.",
                 "Known narrow reference expectations need semantic review, not exact answer matching.",
+                "File Search uses a tool-specific prompt and OpenAI chunking; this is an end-to-end comparison.",
+                "File Search tool calls are billed separately from tokens. Search results are recorded for review.",
             ],
         }
         output.parent.mkdir(parents=True, exist_ok=True)
