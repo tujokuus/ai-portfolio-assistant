@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ai-portfolio-assistant
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[web]"
+    startCommand: python -m uvicorn backend.web:app --host 0.0.0.0 --port $PORT --workers 1 --no-access-log
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SOURCES_MANIFEST
+        value: deployment_bundle/sources.json
+      - key: CHAT_ENABLED
+        value: "false"
+      - key: CHAT_HOURLY_LIMIT
+        value: "20"
+      - key: CHAT_DAILY_LIMIT
+        value: "100"

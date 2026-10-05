@@ -79,6 +79,16 @@ For project answers, prefer concrete implementation details over generic claims,
 while preserving unfinished status and documented limitations. The current
 reference facts must be reviewed whenever the underlying documents change.
 
+Prompt v6 uses direct factual language instead of repeated "According to the CV"
+prefaces. General project introductions should focus on implemented work without
+unsolicited unfinished/MVP disclaimers. Explicit readiness and performance
+questions must still preserve the documented limitations. The existing Car Price
+Prediction case remains a readiness test; its expected facts have not changed.
+For a small manual style check, ask "What is Car Price Prediction?" and then
+"Is Car Price Prediction finished, and are its results final test performance?"
+as independent questions. Review the difference in relevant detail, not an exact
+wording match. Style behavior needs real answer review, not a mocked prompt test.
+
 ## 5. Optional comparison with the existing summaries
 
 ```powershell
