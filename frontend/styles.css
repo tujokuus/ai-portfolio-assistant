@@ -34,9 +34,13 @@ button:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 3
 .message.user { background: #f0f4ec; border-radius: 12px; padding: 16px; }
 details { margin-top: 14px; font-size: 13px; color: #536257; }
 summary { cursor: pointer; width: fit-content; }
-details ul { padding-left: 20px; }
-details li { margin-top: 8px; }
-.source-file { display: block; font-size: 12px; color: #687568; }
+.sources { margin-top: 18px; }
+.sources h3 { margin: 0; font-size: 12px; font-weight: 600; color: #627064; }
+.sources details { border: 1px solid #dce2d9; border-radius: 9px; padding: 12px; margin-top: 8px; }
+.sources summary { font-weight: 600; }
+.source-file { display: block; margin-top: 10px; font-size: 12px; color: #687568; }
+.source-original { display: inline-block; margin-top: 8px; color: #294f3d; text-underline-offset: 3px; }
+.source-text { margin-top: 10px; padding: 14px; background: #f5f6f2; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 #status { margin: 0; padding: 0 24px; color: #576d5d; font-size: 14px; }
 #status:not(:empty) { padding-top: 16px; padding-bottom: 16px; }
 #error { margin: 16px 24px; padding: 12px; border-radius: 8px; color: #873a27; background: #fff2eb; }

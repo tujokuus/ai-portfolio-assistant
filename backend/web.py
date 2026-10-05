@@ -5,14 +5,15 @@ from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from backend.config import LLMConfig
 from backend.llm import LLMError, create_client
-from backend.rag import PortfolioAssistant
+from backend.rag import PortfolioAssistant, build_messages, Evidence
+from backend.source_documents import load_source_documents
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
@@ -20,13 +21,21 @@ FRONTEND = ROOT / "frontend"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load the corpus once. The API key stays in the server environment.
-    config = LLMConfig(provider="openai", model="gpt-6-luna", timeout_seconds=60)
+    # Snapshot the originals once, so displayed files match the model's evidence.
+    # This is an application input budget, not a claim about the model's window.
+    config = LLMConfig(provider="openai", model="gpt-6-luna", timeout_seconds=60,
+                       num_ctx=131072)
+    sources = load_source_documents(ROOT / "sources.local.json")
+    documents = [source.document for source in sources]
+    app.state.originals = {source.document.source: source for source in sources}
+    # Fail at startup if the full corpus cannot fit; never silently drop a README.
+    build_messages("?" * config.max_question_chars, [
+        Evidence(f"S{index}", doc.source, doc.title, None, None, doc.text)
+        for index, doc in enumerate(documents, 1)
+    ], config)
     app.state.assistant = PortfolioAssistant(
-        create_client(config), config, mode="full", data_dir=ROOT / "data"
+        create_client(config), config, mode="full", documents=documents
     )
-    if not any(doc.text.strip() for doc in app.state.assistant.documents):
-        raise RuntimeError("Add portfolio Markdown documents to data/ before starting.")
     app.state.generation_lock = Lock()
     yield
 
@@ -74,10 +83,25 @@ def chat(body: ChatRequest, request: Request):
         "answer": result.answer,
         "status": result.status,
         "sources": [
-            {"id": source.source_id, "title": source.title, "file": source.source}
+            {"id": source.source_id, "title": source.title,
+             "file": source.source, "text": source.text,
+             "url": f"/api/sources/{source.source}"}
             for source in result.sources
         ],
     }
+
+
+@app.get("/api/sources/{name}")
+def original_source(name: str, request: Request):
+    # Lookup only: never interpret a browser-supplied name as a filesystem path.
+    source = request.app.state.originals.get(name)
+    if source is None:
+        raise HTTPException(404, "Unknown source.")
+    return Response(source.original, media_type=source.media_type, headers={
+        "Content-Disposition": f'inline; filename="{name}"',
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store",
+    })
 
 
 if __name__ == "__main__":

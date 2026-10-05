@@ -32,21 +32,32 @@ function addMessage(role, text, sources = []) {
   article.append(heading, paragraph);
 
   if (sources.length) {
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = `Sources (${sources.length})`;
-    const list = document.createElement('ul');
+    const sourceList = document.createElement('div');
+    sourceList.className = 'sources';
+    const label = document.createElement('h3');
+    label.textContent = `Sources (${sources.length})`;
+    sourceList.append(label);
     for (const source of sources) {
-      const item = document.createElement('li');
-      item.textContent = `[${source.id}] ${source.title}`;
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = `[${source.id}] ${source.title}`;
       const file = document.createElement('span');
       file.className = 'source-file';
       file.textContent = source.file;
-      item.append(file);
-      list.append(item);
+      const original = document.createElement('a');
+      original.className = 'source-original';
+      original.href = source.url;
+      original.target = '_blank';
+      original.rel = 'noopener noreferrer';
+      original.textContent = source.file.endsWith('.pdf') ? 'Open original CV (PDF)' : 'Open original README';
+      const content = document.createElement('div');
+      content.className = 'source-text';
+      // Show the original document as plain text, including Markdown notation.
+      content.textContent = source.text;
+      details.append(summary, file, original, content);
+      sourceList.append(details);
     }
-    details.append(summary, list);
-    article.append(details);
+    article.append(sourceList);
   }
   messages.append(article);
   return article;
@@ -106,6 +117,26 @@ form.addEventListener('submit', async event => {
     setBusy(false);
     questionInput.focus();
   }
+});
+
+questionInput.addEventListener('keydown', event => {
+  // Enter may confirm a composed character; it must not send that question.
+  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+  if (event.ctrlKey) {
+    event.preventDefault();
+    if (busy || event.repeat) return;
+    const start = questionInput.selectionStart;
+    const end = questionInput.selectionEnd;
+    if (questionInput.value.length - (end - start) < questionInput.maxLength) {
+      questionInput.setRangeText('\n', start, end, 'end');
+      questionInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    return;
+  }
+  // Preserve native Shift+Enter and other modified keyboard shortcuts.
+  if (event.shiftKey || event.altKey || event.metaKey) return;
+  event.preventDefault();
+  if (!busy && !event.repeat) form.requestSubmit();
 });
 
 questionInput.addEventListener('input', () => questionInput.setCustomValidity(''));

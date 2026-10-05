@@ -37,10 +37,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("question")
     parser.add_argument("--mode", choices=["full", "rag", "file-search"], default="full")
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--sources", type=Path, help="Original-source manifest (full mode only)")
     add_options(parser)
     args = parser.parse_args(argv)
     try:
         config = llm_config(args)
+        documents = None
+        if args.sources:
+            if args.mode != "full":
+                raise ValueError("--sources currently supports --mode full only")
+            from backend.source_documents import load_source_documents
+            documents = [source.document for source in load_source_documents(args.sources)]
         if not args.question.strip() or len(args.question.strip()) > config.max_question_chars:
             raise ValueError(f"Provide a question of 1–{config.max_question_chars} characters")
         if args.mode == "file-search":
@@ -50,7 +57,8 @@ def main(argv: list[str] | None = None) -> int:
                                             args.file_search_manifest, args.top_k)
         else:
             assistant = PortfolioAssistant(create_client(config), config, mode=args.mode,
-                                           data_dir=args.data_dir, db_dir=args.db_dir, top_k=args.top_k)
+                                           data_dir=args.data_dir, db_dir=args.db_dir, top_k=args.top_k,
+                                           documents=documents)
         result = assistant.ask(args.question)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.exit(1, f"Question failed: {exc}\n")

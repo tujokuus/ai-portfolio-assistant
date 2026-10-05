@@ -32,6 +32,58 @@ frontend now wrap the existing full-context answer service.
 
 ## Local browser interface
 
+### Original CV and project sources
+
+The browser now reads **only** the six files listed in `sources.local.json`:
+the latest CV PDF and the complete READMEs for AI Portfolio Assistant, Local Voice
+Agent, Car Price Prediction, Giveaway Agent, and Strikes on Ukraine Analytics.
+The older curated `data/` documents are preserved for previous experiments but
+are not mixed into the browser's evidence. Earlier answer results and evaluation
+source expectations describe the old corpus and must not be treated as scores
+for this new source set. The current grounding prompt is v5.
+
+The local manifest is gitignored because it contains machine-specific paths.
+For a fresh checkout, copy `sources.example.json` to `sources.local.json` and
+adjust its paths. Relative paths resolve from the manifest's directory. Only
+explicitly listed files are read: no repository crawling or GitHub fetching.
+
+PDF text is extracted locally with pypdf's layout extraction, with no AI summary
+and no OCR. README text is read in full. The model receives extracted text, not
+PDF page images. Original bytes are kept in memory for source links. Review the
+extracted CV once to check headings, dates, and reading order:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[web,dev]"
+.\.venv\Scripts\python.exe -m backend.source_documents --sources sources.local.json
+# Offline tests; no OpenAI requests.
+.\.venv\Scripts\python.exe -m pytest tests/test_source_documents.py -q
+```
+
+Edit the original CV or README and **restart the server** to refresh its snapshot.
+If a file moves, update its manifest path. The original-source links serve the
+same in-memory bytes used at startup, so an on-disk edit does not silently change
+an existing snapshot. Each cited source can be expanded as text or opened in a
+new tab as the original PDF/plain README. All listed originals are accessible
+through their local source URLs; review the whole CV before a public deployment.
+Missing, empty, unreadable sources and PDF pages without extractable text stop
+startup instead of silently reducing the evidence.
+
+The larger full corpus uses a conservative application context budget of 131072
+in the web server. This is not a measured token count or model-window setting.
+The complete corpus is sent with every question; costs and latency need to be
+measured again. There is no automatic truncation or fallback to old summaries.
+
+For a CLI question using the same sources and context budget:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.ask "What multimodal machine learning work has Tuomas done?" --provider openai --mode full --sources sources.local.json --num-ctx 131072
+```
+
+Without `--sources`, existing CLI commands still use `data/`. The comparison
+runner and old evaluation datasets have not yet been migrated to this corpus.
+For a deployment, bundle selected original files with the service and adjust the
+manifest paths; the cloud cannot access your Downloads folder or sibling repos.
+
 Run these commands from the repository directory. The browser interface always
 uses OpenAI with `gpt-6-luna` and full context. Sending a question makes a paid API
 request; opening the page or choosing an example does not.
@@ -48,8 +100,8 @@ $env:OPENAI_API_KEY = Read-Host "OpenAI API key" -MaskInput
 
 Open **http://127.0.0.1:8000** in your browser. Stop the server with `Ctrl+C`.
 The server reads the key from its environment, not from `.env`. Missing keys or
-missing portfolio data stop startup with an error in the terminal. Restart the
-server after changing the Markdown corpus or Python code; refresh the browser
+missing source files stop startup with an error in the terminal. Restart the
+server after changing the CV, README sources or Python code; refresh the browser
 after changing frontend files.
 
 The app binds only to the local machine. It is not yet configured for public
@@ -64,10 +116,15 @@ deployment will additionally need abuse controls and spending limits.
 - `frontend/app.js`: form handling, loading/errors, answers, and source lists.
 - `backend/web.py`: serves the page, `GET /health`, and `POST /api/chat`.
 
-The API returns answer text and cited source titles/filenames only. It does not
-send the full corpus, API key, or raw provider response to the browser. User and
-model text is displayed as text, not interpreted as HTML. Sources identify the
-local Markdown documents; this version does not open their contents in the UI.
+The API returns answer text and each cited source's title, filename, and full
+document text and an original-file URL. The chat response does not include uncited
+documents, the API key, or the raw provider response. Each source title opens an expandable document
+below the answer. Documents are shown as plain text with Markdown notation and
+line breaks preserved, never interpreted as HTML. Expanding text makes no new
+request; opening the original fetches it from the local server without calling
+OpenAI. This shows the cited document, not a highlighted
+supporting passage. Only include documents intended for visitors to read before
+publishing the application.
 
 Each question is independent: previous messages are displayed but are not sent
 to the model. The page stores no chat history on disk; reloading or clearing the
@@ -81,7 +138,10 @@ or called OpenAI for this interface. To check it yourself:
 
 1. Open the page, select an example, and press **Send question**. Choosing an
    example only fills the input so you can edit it before sending.
-2. Expand **Sources** and compare the answer with the referenced document.
+2. Click a source title under **Sources** to open and close its full document.
+   Compare it with the corresponding Markdown file and the answer. Check a
+   multi-source answer, keyboard navigation (Tab then Enter), and long text on
+   a narrow screen. Source toggles should not make new requests in Network.
 3. Ask about AWS certifications, then an unrelated topic. Confirm that the
    assistant handles missing information and stays within portfolio scope.
 4. Resize the browser to a phone width and navigate the controls with Tab.
@@ -89,7 +149,10 @@ or called OpenAI for this interface. To check it yourself:
    an error appears and the question remains available for a manual retry.
 6. Restart the server, send another question, and try **Clear chat**.
 
-Enter inserts a new line in the question field; use the send button to submit.
+Enter sends the question; Ctrl+Enter inserts a new line at the cursor (or replaces
+selected text). Shift+Enter also retains its normal newline behavior. The send
+button remains available. Manually check these shortcuts, including an empty
+question, selected text, and the 2,000-character limit.
 
 ## OpenAI: manual setup and comparison
 
