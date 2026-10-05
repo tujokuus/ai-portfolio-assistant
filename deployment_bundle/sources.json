@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "name": "cv.pdf",
+      "title": "Tuomas Kuusisto — CV",
+      "path": "cv.pdf"
+    },
+    {
+      "name": "ai-portfolio-assistant.md",
+      "title": "AI Portfolio Assistant — README",
+      "path": "ai-portfolio-assistant.md"
+    },
+    {
+      "name": "ai-voice-agent.md",
+      "title": "Local Voice Agent — README",
+      "path": "ai-voice-agent.md"
+    },
+    {
+      "name": "car-price-prediction.md",
+      "title": "Car Price Prediction — README",
+      "path": "car-price-prediction.md"
+    },
+    {
+      "name": "giveaway-agent.md",
+      "title": "Giveaway Agent — README",
+      "path": "giveaway-agent.md"
+    },
+    {
+      "name": "ukraine-analytics.md",
+      "title": "Strikes on Ukraine Analytics — README",
+      "path": "ukraine-analytics.md"
+    }
+  ]
+}
