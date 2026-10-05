@@ -80,7 +80,9 @@ For a CLI question using the same sources and context budget:
 ```
 
 Without `--sources`, existing CLI commands still use `data/`. The comparison
-runner and old evaluation datasets have not yet been migrated to this corpus.
+runner now supports original sources and two-corpus comparisons. See the
+[evaluation guide](EVALUATION.md) for validation without model calls, the new
+eight-case suite and manual review. Old datasets still describe the old corpus.
 For a deployment, bundle selected original files with the service and adjust the
 manifest paths; the cloud cannot access your Downloads folder or sibling repos.
 
