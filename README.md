@@ -50,6 +50,9 @@ and token usage for manual factual review. Render runs FastAPI with Uvicorn from
 a GitHub-linked repository. Code and source updates reach the service through
 commits and deployment. The cloud reads `deployment_bundle/sources.json`; updating
 a local CV or another project's README also requires refreshing its bundled copy.
+Run `python -m backend.update_sources --dry-run` to preview changes, then
+`python -m backend.update_sources` to refresh the bundle from `sources.local.json`.
+See [deployment instructions](DEPLOYMENT.md#updating-the-source-bundle) for publishing updates.
 Restarting the deployed service loads that release's source snapshot into memory.
 
 ## Engineering work

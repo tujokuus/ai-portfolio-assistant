@@ -22,6 +22,7 @@ portfolio-index = "backend.indexing:main"
 portfolio-evaluate = "backend.evaluation:main"
 portfolio-ask = "backend.ask:main"
 portfolio-compare = "backend.compare:main"
+portfolio-update-sources = "backend.update_sources:main"
 
 [tool.setuptools.packages.find]
 include = ["backend*"]

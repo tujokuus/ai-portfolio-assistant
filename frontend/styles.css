@@ -23,9 +23,11 @@ button:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 3
 .text-button:hover { text-decoration: underline; }
 #welcome { padding: 34px 24px 24px; }
 .welcome-title { margin: 0; font-size: 20px; font-weight: 600; }
-.muted { color: #67736c; font-size: 14px; margin: 4px 0 20px; }
+.muted { color: #67736c; font-size: 14px; margin: 4px 0 0; }
+.suggestions { padding: 0 24px 24px; }
+.suggestions-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: #627064; }
 .examples { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.example { background: #fafbf8; color: #344e40; border: 1px solid #dce3d6; border-radius: 9px; padding: 10px 14px; text-align: left; font-size: 14px; }
+.example { max-width: 100%; background: #fafbf8; color: #344e40; border: 1px solid #dce3d6; border-radius: 9px; padding: 10px 14px; text-align: left; font-size: 14px; }
 .example:hover { background: #edf2e8; border-color: #a6b99b; }
 #messages { padding: 0 24px; }
 .message { margin: 24px 0; overflow-wrap: anywhere; }
@@ -59,6 +61,7 @@ footer { color: #687267; font-size: 12px; text-align: center; margin-top: 20px; 
 @media (max-width: 520px) {
   main { padding: 28px 14px 20px; }
   .chat-heading, #welcome, form { padding: 18px; }
+  .suggestions { padding: 0 18px 18px; }
   #messages { padding: 0 18px; }
   .form-footer { align-items: stretch; flex-direction: column; }
   #send { width: 100%; }

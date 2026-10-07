@@ -17,10 +17,37 @@ After reviewing the bundle, explicitly add it to the repository used for Render
 deployment. If that repository is public, this also publishes the files in Git
 history. A separate private deployment repository is an alternative.
 
-The bundle was copied during preparation. Future original-file edits do not
-refresh it automatically: refresh the corresponding bundle files before a
-release and validate that snapshot. Do not include USAGE.md, evaluation answers,
-reports, API keys, or unrelated repository contents in the source manifest.
+### Updating the source bundle
+
+After editing the CV or a project's README, run these commands from the repository
+root. If a file's location changed, first update its `path` in `sources.local.json`.
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.update_sources --dry-run
+.\.venv\Scripts\python.exe -m backend.update_sources
+git diff --stat -- deployment_bundle
+```
+
+The command validates every listed document, then copies its original bytes and
+writes `deployment_bundle/sources.json` with portable relative paths. It reports
+added, updated, and unchanged files. It makes no API calls or Git operations.
+PDF validation needs the existing `web` dependencies. Optional `--sources` and
+`--output-dir` select another manifest and destination.
+
+Unlisted files are reported and retained for manual review; the new manifest
+excludes them from the assistant's sources. Remove obsolete public files from Git
+yourself if appropriate (this does not erase Git history). An interrupted write
+can leave a partly updated bundle: rerun successfully before committing it.
+
+Review the changes, commit the bundle, and push to the branch used by Render.
+Already tracked bundle files can be staged normally; a new file in the ignored
+directory needs `git add -f deployment_bundle/<filename>`. With automatic deploys
+enabled, the push triggers deployment; otherwise deploy the commit manually.
+The running service reads a source snapshot at startup, so local edits alone do
+not update the deployed assistant.
+
+Do not include USAGE.md, evaluation answers, reports, API keys, or unrelated
+repository contents in the source manifest.
 
 ## Local release checks (run manually)
 

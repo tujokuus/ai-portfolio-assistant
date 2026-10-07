@@ -7,8 +7,10 @@ const status = document.querySelector('#status');
 const error = document.querySelector('#error');
 const sendButton = document.querySelector('#send');
 const clearButton = document.querySelector('#clear');
-const examples = document.querySelectorAll('.example');
+const examples = [...document.querySelectorAll('.example')];
+const suggestions = document.querySelector('.suggestions');
 let busy = false;
+let selectedExample = null;
 
 function setBusy(value) {
   busy = value;
@@ -63,8 +65,22 @@ function addMessage(role, text, sources = []) {
   return article;
 }
 
+function removeAskedExample(question) {
+  const normalizedQuestion = question.trim().toLocaleLowerCase();
+  const selectedMatch = selectedExample && selectedExample.textContent.trim().toLocaleLowerCase() === normalizedQuestion
+    ? selectedExample : null;
+  const askedExample = selectedMatch || examples.find(button =>
+    button.textContent.trim().toLocaleLowerCase() === normalizedQuestion
+  );
+  selectedExample = null;
+  if (!askedExample) return;
+  askedExample.remove();
+  if (!suggestions.querySelector('.example')) suggestions.hidden = true;
+}
+
 examples.forEach(button => {
   button.addEventListener('click', () => {
+    selectedExample = button;
     questionInput.value = button.textContent;
     questionInput.focus();
   });
@@ -90,6 +106,7 @@ form.addEventListener('submit', async event => {
   }
   error.hidden = true;
   welcome.hidden = true;
+  removeAskedExample(question);
   const userMessage = addMessage('user', question);
   setBusy(true);
   try {

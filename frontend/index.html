@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask about Tuomas</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="/static/styles.css?v=2">
+  <script src="/static/app.js?v=2" defer></script>
 </head>
 <body>
   <main>
@@ -23,15 +23,19 @@
 
       <div id="welcome">
         <p class="welcome-title">Start with a question</p>
-        <p class="muted">Choose an example, or write your own below.</p>
-        <div class="examples">
-          <button type="button" class="example">What has Tuomas used Databricks for?</button>
-          <button type="button" class="example">What is the Local Voice Agent project?</button>
-          <button type="button" class="example">What does Tuomas study?</button>
-        </div>
+        <p class="muted">Choose an example below, or write your own question.</p>
       </div>
 
       <div id="messages" role="log" aria-label="Questions and answers" aria-live="polite" aria-relevant="additions"></div>
+      <div class="suggestions" aria-label="Example questions">
+        <p class="suggestions-title">Try asking</p>
+        <div class="examples">
+          <button type="button" class="example">Tell me about Tuomas’s professional experience.</button>
+          <button type="button" class="example">How does this AI portfolio assistant retrieve information and generate answers?</button>
+          <button type="button" class="example">How did Tuomas process the data for the Air Strikes on Ukraine dashboard?</button>
+          <button type="button" class="example">What machine learning and data engineering skills has Tuomas used in practice?</button>
+        </div>
+      </div>
       <p id="status" role="status"></p>
       <p id="error" role="alert" hidden></p>
 
