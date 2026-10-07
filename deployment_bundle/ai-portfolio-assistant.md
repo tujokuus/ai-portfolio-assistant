@@ -39,9 +39,9 @@ markers from validated references. Each cited document can be expanded as text
 or opened through `GET /api/sources/{name}`, which serves only explicitly listed
 source snapshots. Browser output is rendered as text rather than executable HTML.
 The API key is read from a server environment variable. Host and browser-origin
-checks, one concurrent generation, a chat switch, and shared rolling request
-quotas limit use; origin checks are not user authentication. Quotas are held in
-memory and reset on restart.
+checks, one concurrent generation, a chat switch, per-IP rolling quotas, and a
+service-wide rolling quota limit use; origin checks are not user authentication.
+Both quota levels are held in memory and reset on restart.
 
 **Testing and delivery.** Pytest tests cover source loading, answer validation,
 mocked provider failures, web routes, and request limits without real model calls.
@@ -50,6 +50,9 @@ and token usage for manual factual review. Render runs FastAPI with Uvicorn from
 a GitHub-linked repository. Code and source updates reach the service through
 commits and deployment. The cloud reads `deployment_bundle/sources.json`; updating
 a local CV or another project's README also requires refreshing its bundled copy.
+Run `python -m backend.update_sources --dry-run` to preview changes, then
+`python -m backend.update_sources` to refresh the bundle from `sources.local.json`.
+See [deployment instructions](DEPLOYMENT.md#updating-the-source-bundle) for publishing updates.
 Restarting the deployed service loads that release's source snapshot into memory.
 
 ## Engineering work

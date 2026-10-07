@@ -94,11 +94,17 @@ Official references: [FastAPI on Render](https://render.com/docs/deploy-fastapi)
 
 - CHAT_ENABLED=false blocks generation. It does not hide documents or the page.
 - CHAT_HOURLY_LIMIT=20 and CHAT_DAILY_LIMIT=100 count attempted generations across
-  **all visitors**, with rolling windows. Failed provider calls also consume a
-  slot because they may be billed. Busy/invalid/disabled requests do not.
+  **all visitors** and remain the service-wide ceiling, with rolling windows.
+  CHAT_IP_HOURLY_LIMIT=20 and CHAT_IP_DAILY_LIMIT=40 are separate per-IP limits.
+  Failed provider calls also consume a slot because they may be billed.
+  Busy/invalid/disabled requests do not.
+- Render's CF-Connecting-IP header is preferred; the first address in
+  X-Forwarded-For is the fallback, followed by the direct client address. IP
+  limits are best-effort and can be evaded by changing networks or addresses.
 - One model call runs at a time. Requests while busy receive 429.
 - Quotas live in memory, reset on restart, and are not shared across workers or
-  instances. Keep one worker. They are not a durable spend cap or per-user limit.
+  instances. Keep one worker. They are not a durable spend cap or a verified
+  identity limit. Multiple visitors can share one IP address.
 - CORS is not enabled and unexpected browser Origins are rejected. Origin checks
   do not authenticate callers and cannot prevent direct automated requests.
 - API error details are not exposed to visitors. The app does not store chat

@@ -1,6 +1,7 @@
 """Local web interface: run with python -m backend.web from the repository."""
 
 from contextlib import asynccontextmanager
+from ipaddress import ip_address
 import os
 from pathlib import Path
 from threading import Lock
@@ -49,7 +50,9 @@ async def lifespan(app: FastAPI):
     )
     app.state.generation_lock = Lock()
     app.state.quota = RequestQuota(int(os.environ.get("CHAT_HOURLY_LIMIT", "20")),
-                                  int(os.environ.get("CHAT_DAILY_LIMIT", "100")))
+                                  int(os.environ.get("CHAT_DAILY_LIMIT", "100")),
+                                  int(os.environ.get("CHAT_IP_HOURLY_LIMIT", "20")),
+                                  int(os.environ.get("CHAT_IP_DAILY_LIMIT", "40")))
     app.state.chat_enabled = os.environ.get("CHAT_ENABLED", "true").lower() == "true"
     yield
 
@@ -62,6 +65,23 @@ app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     question: str = Field(min_length=1, max_length=2000)
+
+
+def get_client_ip(request: Request) -> str:
+    """Use Render/Cloudflare's client-IP header, then the Render XFF fallback."""
+    candidates = [request.headers.get("cf-connecting-ip", "")]
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        candidates.append(forwarded_for.split(",", 1)[0].strip())
+    if request.client and request.client.host:
+        candidates.append(request.client.host)
+
+    for candidate in candidates:
+        try:
+            return ip_address(candidate).compressed
+        except ValueError:
+            continue
+    return "unknown"
 
 
 @app.get("/")
@@ -86,8 +106,11 @@ def chat(body: ChatRequest, request: Request):
     if not lock.acquire(blocking=False):
         raise HTTPException(429, "Another answer is being prepared. Please wait.")
     try:
-        if not request.app.state.quota.allow():
-            raise HTTPException(429, "The demo has reached its shared request limit. Please try again later.")
+        limit = request.app.state.quota.check(get_client_ip(request))
+        if limit == "ip":
+            raise HTTPException(429, "This IP address has reached its request limit. Please try again later.")
+        if limit == "service":
+            raise HTTPException(429, "The service-wide request limit has been reached. Please try again later.")
         result = request.app.state.assistant.ask(body.question)
     except LLMError:
         raise HTTPException(502, "Could not generate an answer. Please try again later.") from None
