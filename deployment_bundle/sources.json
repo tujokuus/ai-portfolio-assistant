@@ -1,6 +1,11 @@
 {
   "sources": [
     {
+      "name": "working-style.md",
+      "title": "Tuomas Kuusisto — Working Style and Motivation",
+      "path": "working-style.md"
+    },
+    {
       "name": "cv.pdf",
       "title": "Tuomas Kuusisto — CV",
       "path": "cv.pdf"

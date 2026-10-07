@@ -17,7 +17,8 @@ htmlcov/
 vector_db/
 sources.local.json
 originals/
-deployment_bundle/
+deployment_bundle/*
+!deployment_bundle/working-style.md
 chunks.json
 reports/
 docs/
