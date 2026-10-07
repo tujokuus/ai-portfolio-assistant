@@ -5,16 +5,20 @@ const messages = document.querySelector('#messages');
 const welcome = document.querySelector('#welcome');
 const status = document.querySelector('#status');
 const error = document.querySelector('#error');
+const characterCount = document.querySelector('#character-count');
+const questionLimitError = document.querySelector('#question-limit-error');
 const sendButton = document.querySelector('#send');
 const clearButton = document.querySelector('#clear');
 const examples = [...document.querySelectorAll('.example')];
 const suggestions = document.querySelector('.suggestions');
+const maxQuestionChars = 2000;
 let busy = false;
+let overLimit = false;
 let selectedExample = null;
 
 function setBusy(value) {
   busy = value;
-  sendButton.disabled = value;
+  sendButton.disabled = value || overLimit;
   clearButton.disabled = value;
   questionInput.disabled = value;
   examples.forEach(button => { button.disabled = value; });
@@ -78,6 +82,17 @@ function removeAskedExample(question) {
   if (!suggestions.querySelector('.example')) suggestions.hidden = true;
 }
 
+function updateQuestionLength() {
+  const count = Array.from(questionInput.value).length;
+  overLimit = count > maxQuestionChars;
+  characterCount.textContent = `${count} / ${maxQuestionChars} characters`;
+  questionLimitError.textContent = overLimit
+    ? `The 2,000-character limit has been exceeded by ${count - maxQuestionChars}. Shorten your question before sending.`
+    : '';
+  questionLimitError.hidden = !overLimit;
+  sendButton.disabled = busy || overLimit;
+}
+
 examples.forEach(button => {
   button.addEventListener('click', () => {
     selectedExample = button;
@@ -92,6 +107,7 @@ clearButton.addEventListener('click', () => {
   welcome.hidden = false;
   error.hidden = true;
   questionInput.value = '';
+  updateQuestionLength();
   questionInput.focus();
 });
 
@@ -102,6 +118,11 @@ form.addEventListener('submit', async event => {
   if (!question) {
     questionInput.setCustomValidity('Please write a question.');
     questionInput.reportValidity();
+    return;
+  }
+  updateQuestionLength();
+  if (overLimit) {
+    questionInput.focus();
     return;
   }
   error.hidden = true;
@@ -122,6 +143,7 @@ form.addEventListener('submit', async event => {
     }
     addMessage('assistant', data.answer, data.sources);
     questionInput.value = '';
+    updateQuestionLength();
   } catch (problem) {
     // Keep the question for manual retry; never automatically repeat a paid call.
     userMessage.remove();
@@ -156,4 +178,9 @@ questionInput.addEventListener('keydown', event => {
   if (!busy && !event.repeat) form.requestSubmit();
 });
 
-questionInput.addEventListener('input', () => questionInput.setCustomValidity(''));
+questionInput.addEventListener('input', () => {
+  questionInput.setCustomValidity('');
+  updateQuestionLength();
+});
+
+updateQuestionLength();

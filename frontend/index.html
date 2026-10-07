@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask about Tuomas</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2">
-  <script src="/static/app.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/styles.css?v=3">
+  <script src="/static/app.js?v=3" defer></script>
 </head>
 <body>
   <main>
@@ -41,8 +41,12 @@
 
       <form id="chat-form">
         <label for="question">Your question</label>
-        <textarea id="question" name="question" rows="3" maxlength="2000" required
-          placeholder="Ask about a project, skill, or experience…" aria-describedby="question-hint"></textarea>
+        <textarea id="question" name="question" rows="3" required
+          placeholder="Ask about a project, skill, or experience…" aria-describedby="question-hint character-count question-limit-error"></textarea>
+        <div class="question-meta">
+          <p id="question-limit-error" role="alert" hidden></p>
+          <span id="character-count" role="status" aria-live="polite">0 / 2000 characters</span>
+        </div>
         <div class="form-footer">
           <span id="question-hint"><br>English answers · Each question is independent</span>
           <button id="send" type="submit">Send question <span aria-hidden="true">↗</span></button>

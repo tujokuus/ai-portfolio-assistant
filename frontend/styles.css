@@ -50,6 +50,9 @@ form { padding: 24px; }
 label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
 textarea { display: block; width: 100%; min-height: 95px; resize: vertical; padding: 12px 14px; border: 1px solid #bac8b9; border-radius: 10px; color: #243a32; background: white; }
 textarea::placeholder { color: #788477; }
+.question-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 6px; font-size: 12px; }
+#question-limit-error { margin: 0; color: #873a27; }
+#character-count { flex-shrink: 0; margin-left: auto; color: #627064; text-align: right; }
 .form-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 12px; }
 #question-hint { color: #627064; font-size: 12px; }
 #send { flex-shrink: 0; background: #294f3d; color: white; border: 0; border-radius: 9px; padding: 11px 17px; font-size: 14px; }
