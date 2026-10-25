@@ -1,5 +1,7 @@
 # AI Portfolio Assistant
 
+[Live demo](https://ai-portfolio-assistant-xsrr.onrender.com/)
+
 A source-grounded chatbot for exploring Tuomas Kuusisto's experience, education,
 and software projects. Visitors can ask questions, read cited source text, and
 open the original CV or project README.
